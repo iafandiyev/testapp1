@@ -1,0 +1,24 @@
+name: SimpleNotes
+
+options:
+  bundleIdPrefix: com.iafandiyev
+  deploymentTarget:
+    iOS: "16.0"
+
+targets:
+  SimpleNotes:
+    type: application
+    platform: iOS
+
+    sources:
+      - path: SimpleNotes
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iafandiyev.simplenotes
+        PRODUCT_NAME: SimpleNotes
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Simple Notes
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
