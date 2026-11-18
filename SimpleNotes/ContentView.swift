@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct Note: Identifiable, Codable {
@@ -13,7 +14,6 @@ struct ContentView: View {
     @State private var notes: [Note] = []
     @State private var showingEditor = false
     @State private var editingNote: Note?
-
     @State private var title = ""
     @State private var content = ""
 
@@ -21,91 +21,127 @@ struct ContentView: View {
         NavigationStack {
             Group {
                 if notes.isEmpty {
-                    ContentUnavailableView(
-                        "No Notes",
-                        systemImage: "note.text",
-                        description: Text("Tap + to create your first note.")
-                    )
+                    emptyState
                 } else {
-                    List {
-                        ForEach(notes) { note in
-                            Button {
-                                editingNote = note
-                                title = note.title
-                                content = note.content
-                                showingEditor = true
-                            } label: {
-                                VStack(alignment: .leading, spacing: 7) {
-                                    Text(note.title)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-
-                                    Text(note.content)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-
-                                    Text(note.date, style: .date)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(.vertical, 5)
-                            }
-                        }
-                        .onDelete(perform: deleteNotes)
-                    }
-                    .listStyle(.plain)
+                    notesList
                 }
             }
             .navigationTitle("My Notes")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        editingNote = nil
-                        title = ""
-                        content = ""
-                        showingEditor = true
-                    } label: {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: createNote) {
                         Image(systemName: "plus")
-                            .font(.title3)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(.black, in: Circle())
                     }
+                    .accessibilityLabel("Create note")
                 }
             }
             .sheet(isPresented: $showingEditor) {
-                NavigationStack {
-                    Form {
-                        Section("Title") {
-                            TextField("Enter title", text: $title)
-                        }
-
-                        Section("Content") {
-                            TextEditor(text: $content)
-                                .frame(minHeight: 220)
-                        }
-                    }
-                    .navigationTitle(editingNote == nil ? "New Note" : "Edit Note")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") {
-                                showingEditor = false
-                            }
-                        }
-
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") {
-                                saveNote()
-                            }
-                            .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                }
+                editorSheet
             }
-            .onAppear {
-                loadNotes()
-            }
+            .onAppear(perform: loadNotes)
         }
         .preferredColorScheme(.light)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "note.text")
+                .font(.system(size: 46, weight: .light))
+                .foregroundStyle(.secondary)
+
+            Text("No Notes Yet")
+                .font(.title2.weight(.semibold))
+
+            Text("Tap the + button to create your first note.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var notesList: some View {
+        List {
+            ForEach(notes) { note in
+                Button {
+                    editNote(note)
+                } label: {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(note.title)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+
+                        if !note.content.isEmpty {
+                            Text(note.content)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        Text(note.date, style: .date)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .onDelete(perform: deleteNotes)
+        }
+        .listStyle(.plain)
+    }
+
+    private var editorSheet: some View {
+        NavigationStack {
+            Form {
+                Section("Title") {
+                    TextField("Enter title", text: $title)
+                }
+
+                Section("Content") {
+                    TextEditor(text: $content)
+                        .frame(minHeight: 220)
+                }
+            }
+            .navigationTitle(editingNote == nil ? "New Note" : "Edit Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        showingEditor = false
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save", action: saveNote)
+                        .disabled(
+                            title.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty
+                        )
+                }
+            }
+        }
+    }
+
+    private func createNote() {
+        editingNote = nil
+        title = ""
+        content = ""
+        showingEditor = true
+    }
+
+    private func editNote(_ note: Note) {
+        editingNote = note
+        title = note.title
+        content = note.content
+        showingEditor = true
     }
 
     private func loadNotes() {
@@ -115,7 +151,7 @@ struct ContentView: View {
             return
         }
 
-        notes = decoded
+        notes = decoded.sorted { $0.date > $1.date }
     }
 
     private func saveNotesToStorage() {
@@ -140,14 +176,13 @@ struct ContentView: View {
             notes[index].content = content
             notes[index].date = Date()
         } else {
-            let newNote = Note(
-                title: cleanTitle,
-                content: content
+            notes.insert(
+                Note(title: cleanTitle, content: content),
+                at: 0
             )
-
-            notes.insert(newNote, at: 0)
         }
 
+        notes.sort { $0.date > $1.date }
         saveNotesToStorage()
         showingEditor = false
     }
